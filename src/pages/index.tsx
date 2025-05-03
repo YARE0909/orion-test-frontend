@@ -26,20 +26,23 @@ export default function Dashboard() {
 }
 
 function PropertyFeed({ roomName, label }: { roomName: string; label: string }) {
+  const [wsUrl, setWsUrl] = useState<string>();
   const [token, setToken] = useState<string>();
-  const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
 
   useEffect(() => {
     fetch(`/api/token?identity=receptionist&room=${roomName}`)
       .then((r) => r.json())
-      .then((data) => setToken(data.token))
+      .then(({ wsUrl, token }) => {
+        setWsUrl(wsUrl);
+        setToken(token);
+      })
       .catch(console.error);
   }, [roomName]);
 
-  if (!token) return null;
+  if (!wsUrl || !token) return null;
 
   return (
-    <LiveKitRoom serverUrl={serverUrl} token={token} connectOptions={{ autoSubscribe: true }}>
+    <LiveKitRoom serverUrl={wsUrl} token={token} connectOptions={{ autoSubscribe: true }}>
       <div className="relative w-full h-96">
         <VideoGrid />
         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-sm font-medium px-2 py-1 rounded">
@@ -51,8 +54,7 @@ function PropertyFeed({ roomName, label }: { roomName: string; label: string }) 
 }
 
 function VideoGrid() {
-  const tracks = useTracks(); // fetch all tracks
-
+  const tracks = useTracks();
   const videoTracks = tracks.filter(
     (t) => t.publication.kind === "video" && t.publication.isSubscribed
   );
