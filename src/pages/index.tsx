@@ -1,10 +1,10 @@
-// pages/index.tsx
 import { useEffect, useState } from "react";
 import {
   LiveKitRoom,
   useTracks,
   TrackReferenceOrPlaceholder,
   VideoTrack,
+  AudioTrack,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 
@@ -42,7 +42,15 @@ function PropertyFeed({ roomName, label }: { roomName: string; label: string }) 
   if (!wsUrl || !token) return null;
 
   return (
-    <LiveKitRoom serverUrl={wsUrl} token={token} connectOptions={{ autoSubscribe: true }}>
+    <LiveKitRoom
+      serverUrl={wsUrl}
+      token={token}
+      connectOptions={{
+        autoSubscribe: true,
+        audio: true,
+        video: true,
+      }}
+    >
       <div className="relative w-full h-96">
         <VideoGrid />
         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-sm font-medium px-2 py-1 rounded">
@@ -55,11 +63,31 @@ function PropertyFeed({ roomName, label }: { roomName: string; label: string }) 
 
 function VideoGrid() {
   const tracks = useTracks();
-  const videoTracks = tracks.filter(
-    (t) => t.publication.kind === "video" && t.publication.isSubscribed
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const remoteVideoTracks = tracks.filter(
+    (t) =>
+      t.publication.kind === "video" &&
+      t.publication.isSubscribed &&
+      !t.participant.isLocal
   );
 
-  if (videoTracks.length === 0) {
+  const remoteAudioTracks = tracks.filter(
+    (t) =>
+      t.publication.kind === "audio" &&
+      t.publication.isSubscribed &&
+      !t.participant.isLocal
+  );
+
+  const handleMaximizeClick = () => {
+    setIsFullscreen(true);
+  };
+
+  const handleCloseFullscreen = () => {
+    setIsFullscreen(false);
+  };
+
+  if (remoteVideoTracks.length === 0) {
     return (
       <div className="flex items-center justify-center w-full h-full text-white">
         No video feed
@@ -69,13 +97,55 @@ function VideoGrid() {
 
   return (
     <>
-      {videoTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
-        <VideoTrack
-          key={trackRef.publication.trackSid}
-          trackRef={trackRef}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      ))}
+      {/* Video Feed */}
+      <div className={`relative w-full h-full ${isFullscreen ? "hidden" : "block"}`}>
+        {remoteVideoTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
+          <VideoTrack
+            key={trackRef.publication.trackSid}
+            trackRef={trackRef}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ))}
+
+        {/* This plays remote audio */}
+        {remoteAudioTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
+          <AudioTrack key={trackRef.publication.trackSid} trackRef={trackRef} />
+        ))}
+
+        <button
+          onClick={handleMaximizeClick}
+          className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-sm font-medium px-2 py-1 rounded"
+        >
+          Maximize
+        </button>
+      </div>
+
+      {/* Fullscreen Modal */}
+      {isFullscreen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
+          <div className="relative w-full h-full max-w-screen-lg max-h-screen">
+            {remoteVideoTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
+              <VideoTrack
+                key={trackRef.publication.trackSid}
+                trackRef={trackRef}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ))}
+
+            {/* This plays remote audio */}
+            {remoteAudioTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
+              <AudioTrack key={trackRef.publication.trackSid} trackRef={trackRef} />
+            ))}
+
+            <button
+              onClick={handleCloseFullscreen}
+              className="absolute top-4 right-4 bg-black bg-opacity-50 text-white text-sm font-medium px-2 py-1 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,4 +1,3 @@
-// pages/guest/[room].tsx
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -10,36 +9,46 @@ import {
 
 export default function GuestPage() {
   const { room } = useRouter().query as { room?: string };
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [status, setStatus] = useState<"idle"|"connecting"|"connected"|"error">("idle");
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
 
   useEffect(() => {
     if (!room) return;
 
-    (async () => {
+    const connectToRoom = async () => {
       setStatus("connecting");
       try {
-        // Fetch token + WS URL
+        // Fetch token and server URL from API
         const res = await fetch(`/api/token?identity=guest-${room}&room=${room}`);
         const { wsUrl, token } = await res.json();
 
-        // Connect to LiveKit Cloud
+        console.log("Received token and wsUrl", { wsUrl, token });
+
+        // Connect to LiveKit
         const lkRoom = new Room();
         await lkRoom.connect(wsUrl, token);
 
-        // Publish tracks
+        // Create local video and audio tracks
         const videoTrack = await createLocalVideoTrack({
           resolution: VideoPresets.h180.resolution,
         });
         const audioTrack = await createLocalAudioTrack();
+
+        // Publish tracks to the room
         await lkRoom.localParticipant.publishTrack(videoTrack);
         await lkRoom.localParticipant.publishTrack(audioTrack);
 
-        // Local preview
-        if (videoRef.current) {
-          const el = videoTrack.attach();
-          el.className = "w-full h-full object-cover rounded-md";
-          videoRef.current.replaceWith(el);
+        // Attach local video preview (muted)
+        if (videoContainerRef.current) {
+          const videoElement = videoTrack.attach();
+          videoElement.className = "w-full h-full object-cover rounded-md";
+          videoElement.muted = true; // Prevent feedback
+          videoElement.autoplay = true;
+          videoElement.playsInline = true;
+
+          // Clear previous children and add new video
+          videoContainerRef.current.innerHTML = "";
+          videoContainerRef.current.appendChild(videoElement);
         }
 
         setStatus("connected");
@@ -47,21 +56,22 @@ export default function GuestPage() {
         console.error("Guest connect error:", err);
         setStatus("error");
       }
-    })();
+    };
+
+    connectToRoom();
+
+    return () => {
+      // Clean up if needed
+    };
   }, [room]);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Guest Stream: {room}</h1>
-      <div className="w-full max-w-md aspect-video bg-black rounded-md overflow-hidden shadow-lg">
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-full h-full object-cover rounded-md"
-        />
-      </div>
+      <div
+        ref={videoContainerRef}
+        className="w-full max-w-md aspect-video bg-black rounded-md overflow-hidden shadow-lg"
+      />
       <p className="mt-4 text-sm text-gray-600">
         Status: <span className="font-semibold">{status}</span>
       </p>
