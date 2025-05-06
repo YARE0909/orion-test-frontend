@@ -5,8 +5,11 @@ import {
   TrackReferenceOrPlaceholder,
   VideoTrack,
   AudioTrack,
+  ControlBar,
+  TrackToggle 
 } from "@livekit/components-react";
 import "@livekit/components-styles";
+import { Track } from 'livekit-client'
 
 const PROPERTY_ROOMS = ["property-101", "property-102", "property-103"];
 
@@ -43,20 +46,30 @@ function PropertyFeed({ roomName, label }: { roomName: string; label: string }) 
 
   return (
     <LiveKitRoom
-      serverUrl={wsUrl}
-      token={token}
-      connectOptions={{
-        autoSubscribe: true,
-        audio: true,
-        video: true,
-      }}
+    serverUrl={wsUrl}
+    token={token}
+    connectOptions={{
+      autoSubscribe: true,
+    }}
+    video={true}
+    audio={true}
+    publishDefaults={{
+      simulcast: true,
+    }}
+    onConnected={(room:any) => {
+      console.log("Receptionist connected and can publish tracks.");
+    }}
     >
       <div className="relative w-full h-96">
         <VideoGrid />
         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-sm font-medium px-2 py-1 rounded">
-          {label}
+          {label} 
         </div>
       </div>
+      
+      <TrackToggle source={Track.Source.Microphone} style={{ color: 'white' }}/>
+      <TrackToggle source={Track.Source.Camera} style={{ color: 'white' }} />
+
     </LiveKitRoom>
   );
 }
