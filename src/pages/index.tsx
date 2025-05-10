@@ -6,12 +6,12 @@ import {
   VideoTrack,
   AudioTrack,
   ControlBar,
-  TrackToggle 
+  TrackToggle
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track } from 'livekit-client'
-import { Mic, MicOff } from "lucide-react"; 
-import { Maximize, Minimize } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
+import { Maximize, Minimize, Video, VideoOff, Circle, CircleDot } from "lucide-react";
 
 const PROPERTY_ROOMS = ["property-101", "property-102", "property-103"];
 
@@ -34,6 +34,8 @@ function PropertyFeed({ roomName, label }: { roomName: string; label: string }) 
   const [wsUrl, setWsUrl] = useState<string>();
   const [token, setToken] = useState<string>();
   const [audioMuted, setAudioMuted] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [egressId, setEgressId] = useState(false);
 
   useEffect(() => {
     fetch(`/api/token?identity=receptionist&room=${roomName}`)
@@ -46,6 +48,48 @@ function PropertyFeed({ roomName, label }: { roomName: string; label: string }) 
   }, [roomName]);
 
   if (!wsUrl || !token) return null;
+
+  const toggleRecording = async () => {
+    if (!isRecording) {
+      try {
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, '-'); // e.g., "2025-05-10T14-30-15-123Z"
+        const fileName = `${roomName}-recording-${timestamp}`;
+        const response = await fetch(process.env.NEXT_PUBLIC_STARTRECORDING_API, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            room: roomName,
+            fileName: fileName,
+          }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Recording started:', data);
+          setIsRecording(true);
+          setEgressId(data.egressId);
+        } else {
+          console.error('Failed to start recording:', data.error);
+        }
+      } catch (error) {
+        console.error('Error starting recording:', error);
+      }
+    } else {
+
+      await fetch(process.env.NEXT_PUBLIC_STOPRECORDING_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ egressId }),
+      });
+
+      setIsRecording(false);
+    }
+  };
+
+
+
 
   return (
     <LiveKitRoom
@@ -62,16 +106,27 @@ function PropertyFeed({ roomName, label }: { roomName: string; label: string }) 
       <div className="relative w-full h-96">
         <VideoGrid audioMuted={audioMuted} />
         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-sm font-medium px-2 py-1 rounded">
-          {label}  <button style={{ color: 'white', marginTop: '4px' }} 
-        onClick={() => setAudioMuted((prev) => !prev)}
-        aria-label={audioMuted ? "Unmute" : "Mute"}
-      >
-        {audioMuted ? <MicOff size={15} /> : <Mic size={15} />}
-      </button>
+          {label}  <button style={{ color: 'white', marginTop: '4px' }}
+            onClick={() => setAudioMuted((prev) => !prev)}
+            aria-label={audioMuted ? "Unmute" : "Mute"}
+          >
+            {audioMuted ? <MicOff size={15} /> : <Mic size={15} />}
+          </button>
+          <button
+            onClick={toggleRecording}
+            aria-label={isRecording ? 'Stop Recording' : 'Start Recording'}
+            style={{  marginTop: '4px' }}
+          >
+            {isRecording ? (
+              <CircleDot size={15} color="#dc2626" />  // Red when recording
+            ) : (
+              <Circle size={15} color="#9ca3af" />     // Gray when idle
+            )}
+          </button>
         </div>
-        
 
-        
+
+
       </div>
 
       <TrackToggle source={Track.Source.Microphone} style={{ color: 'white' }} />
@@ -119,11 +174,11 @@ function VideoGrid({ audioMuted }: { audioMuted: boolean }) {
         ))}
         {renderAudioTracks()}
         <button
-  onClick={() => setIsFullscreen(true)}
-  className="absolute top-2 right-2 flex items-center gap-1 bg-black bg-opacity-50 text-white text-sm font-medium px-3 py-1 rounded hover:bg-opacity-70 transition"
->
-  <Maximize className="w-4 h-4" />
-</button>
+          onClick={() => setIsFullscreen(true)}
+          className="absolute top-2 right-2 flex items-center gap-1 bg-black bg-opacity-50 text-white text-sm font-medium px-3 py-1 rounded hover:bg-opacity-70 transition"
+        >
+          <Maximize className="w-4 h-4" />
+        </button>
       </div>
 
       {isFullscreen && (
