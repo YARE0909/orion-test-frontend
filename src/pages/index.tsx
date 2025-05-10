@@ -10,6 +10,8 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track } from 'livekit-client'
+import { Mic, MicOff } from "lucide-react"; 
+import { Maximize, Minimize } from "lucide-react";
 
 const PROPERTY_ROOMS = ["property-101", "property-102", "property-103"];
 
@@ -31,6 +33,7 @@ export default function Dashboard() {
 function PropertyFeed({ roomName, label }: { roomName: string; label: string }) {
   const [wsUrl, setWsUrl] = useState<string>();
   const [token, setToken] = useState<string>();
+  const [audioMuted, setAudioMuted] = useState(false);
 
   useEffect(() => {
     fetch(`/api/token?identity=receptionist&room=${roomName}`)
@@ -46,35 +49,38 @@ function PropertyFeed({ roomName, label }: { roomName: string; label: string }) 
 
   return (
     <LiveKitRoom
-    serverUrl={wsUrl}
-    token={token}
-    connectOptions={{
-      autoSubscribe: true,
-    }}
-    video={true}
-    audio={true}
-    publishDefaults={{
-      simulcast: true,
-    }}
-    onConnected={(room:any) => {
-      console.log("Receptionist connected and can publish tracks.");
-    }}
+      serverUrl={wsUrl}
+      token={token}
+      connectOptions={{ autoSubscribe: true }}
+      video={true}
+      audio={true}
+      publishDefaults={{ simulcast: true }}
+      onConnected={(room: any) => {
+        console.log("Receptionist connected and can publish tracks.");
+      }}
     >
       <div className="relative w-full h-96">
-        <VideoGrid />
+        <VideoGrid audioMuted={audioMuted} />
         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-sm font-medium px-2 py-1 rounded">
-          {label} 
+          {label}  <button style={{ color: 'white', marginTop: '4px' }} 
+        onClick={() => setAudioMuted((prev) => !prev)}
+        aria-label={audioMuted ? "Unmute" : "Mute"}
+      >
+        {audioMuted ? <MicOff size={15} /> : <Mic size={15} />}
+      </button>
         </div>
-      </div>
-      
-      <TrackToggle source={Track.Source.Microphone} style={{ color: 'white' }}/>
-      <TrackToggle source={Track.Source.Camera} style={{ color: 'white' }} />
+        
 
+        
+      </div>
+
+      <TrackToggle source={Track.Source.Microphone} style={{ color: 'white' }} />
+      <TrackToggle source={Track.Source.Camera} style={{ color: 'white' }} />
     </LiveKitRoom>
   );
 }
 
-function VideoGrid() {
+function VideoGrid({ audioMuted }: { audioMuted: boolean }) {
   const tracks = useTracks();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -92,69 +98,50 @@ function VideoGrid() {
       !t.participant.isLocal
   );
 
-  const handleMaximizeClick = () => {
-    setIsFullscreen(true);
-  };
-
-  const handleCloseFullscreen = () => {
-    setIsFullscreen(false);
-  };
-
-  if (remoteVideoTracks.length === 0) {
-    return (
-      <div className="flex items-center justify-center w-full h-full text-white">
-        No video feed
-      </div>
-    );
-  }
+  const renderAudioTracks = () =>
+    remoteAudioTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
+      <AudioTrack
+        key={trackRef.publication.trackSid}
+        trackRef={trackRef}
+        muted={audioMuted}
+      />
+    ));
 
   return (
     <>
-      {/* Video Feed */}
       <div className={`relative w-full h-full ${isFullscreen ? "hidden" : "block"}`}>
-        {remoteVideoTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
+        {remoteVideoTracks.map((trackRef) => (
           <VideoTrack
             key={trackRef.publication.trackSid}
             trackRef={trackRef}
             className="absolute inset-0 w-full h-full object-cover"
           />
         ))}
-
-        {/* This plays remote audio */}
-        {remoteAudioTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
-          <AudioTrack key={trackRef.publication.trackSid} trackRef={trackRef} />
-        ))}
-
+        {renderAudioTracks()}
         <button
-          onClick={handleMaximizeClick}
-          className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-sm font-medium px-2 py-1 rounded"
-        >
-          Maximize
-        </button>
+  onClick={() => setIsFullscreen(true)}
+  className="absolute top-2 right-2 flex items-center gap-1 bg-black bg-opacity-50 text-white text-sm font-medium px-3 py-1 rounded hover:bg-opacity-70 transition"
+>
+  <Maximize className="w-4 h-4" />
+</button>
       </div>
 
-      {/* Fullscreen Modal */}
       {isFullscreen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
           <div className="relative w-full h-full max-w-screen-lg max-h-screen">
-            {remoteVideoTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
+            {remoteVideoTracks.map((trackRef) => (
               <VideoTrack
                 key={trackRef.publication.trackSid}
                 trackRef={trackRef}
                 className="absolute inset-0 w-full h-full object-cover"
               />
             ))}
-
-            {/* This plays remote audio */}
-            {remoteAudioTracks.map((trackRef: TrackReferenceOrPlaceholder) => (
-              <AudioTrack key={trackRef.publication.trackSid} trackRef={trackRef} />
-            ))}
-
+            {renderAudioTracks()}
             <button
-              onClick={handleCloseFullscreen}
+              onClick={() => setIsFullscreen(false)}
               className="absolute top-4 right-4 bg-black bg-opacity-50 text-white text-sm font-medium px-2 py-1 rounded"
             >
-              Close
+              <Minimize className="w-4 h-4" />
             </button>
           </div>
         </div>

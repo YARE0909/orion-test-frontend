@@ -166,10 +166,7 @@ export default function GuestPage() {
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6 space-y-4">
       <h1 className="text-2xl font-bold text-gray-800">Guest Stream: {room}</h1>
 
-      <div
-        className="w-full max-w-md aspect-video bg-black rounded-md overflow-hidden shadow-md"
-        ref={guestVideoRef}
-      />
+      
 
       <div
         className="w-full max-w-md aspect-video bg-gray-800 rounded-md overflow-hidden shadow-md flex items-center justify-center"
@@ -177,7 +174,10 @@ export default function GuestPage() {
       >
         <div className="text-white text-center">Waiting for receptionist...</div>
       </div>
-
+      <div
+  className="w-full max-w-md aspect-video bg-black rounded-md overflow-hidden shadow-md scale-75"
+  ref={guestVideoRef}
+/>
       <div className="mt-4">
       <button
         onClick={handleToggleMute}
